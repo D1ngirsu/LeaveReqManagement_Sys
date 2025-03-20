@@ -17,9 +17,12 @@ public class UserDAO extends DBContext {
     }
 
     private Staff findStaffByCredentials(String username, String password) {
-        String sql = "SELECT u.id, u.username, u.password, u.email, u.fullName, s.division, s.role "
+        String sql = "SELECT u.id, u.username, u.password, u.email, u.fullName, "
+                + "s.divisionId, d.divisionName, s.roleId, r.roleName, s.[group] "
                 + "FROM Users u "
                 + "JOIN Staff s ON u.id = s.id "
+                + "JOIN Division d ON s.divisionId = d.divisionId "
+                + "JOIN Role r ON s.roleId = r.roleId "
                 + "WHERE u.username = ? AND u.password = ?";
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -39,8 +42,8 @@ public class UserDAO extends DBContext {
 
     // Add a new staff member
     public boolean addStaff(Staff staff) {
-        String sqlUser = "INSERT INTO Users (username, password, email, fullName, userType) VALUES (?, ?, ?, ?, 'Staff')";
-        String sqlStaff = "INSERT INTO Staff (id, division, role) VALUES (?, ?, ?)";
+        String sqlUser = "INSERT INTO Users (username, password, email, fullName) VALUES (?, ?, ?, ?)";
+        String sqlStaff = "INSERT INTO Staff (id, divisionId, roleId, [group]) VALUES (?, ?, ?, ?)";
 
         try (PreparedStatement psUser = connection.prepareStatement(sqlUser, Statement.RETURN_GENERATED_KEYS)) {
             psUser.setString(1, staff.getUsername());
@@ -57,8 +60,16 @@ public class UserDAO extends DBContext {
 
                         try (PreparedStatement psStaff = connection.prepareStatement(sqlStaff)) {
                             psStaff.setInt(1, userId);
-                            psStaff.setString(2, staff.getDivision());
-                            psStaff.setString(3, staff.getRole());
+                            psStaff.setInt(2, staff.getDivisionId());
+                            psStaff.setInt(3, staff.getRoleId());
+                            
+                            // Xử lý trường group có thể null
+                            if (staff.getGroup() != null) {
+                                psStaff.setString(4, staff.getGroup());
+                            } else {
+                                psStaff.setNull(4, Types.NVARCHAR);
+                            }
+                            
                             return psStaff.executeUpdate() > 0;
                         }
                     }
@@ -73,7 +84,7 @@ public class UserDAO extends DBContext {
     // Update staff information
     public boolean updateStaff(Staff staff) {
         String sqlUser = "UPDATE Users SET username = ?, fullName = ?, email = ? WHERE id = ?";
-        String sqlStaff = "UPDATE Staff SET division = ?, role = ? WHERE id = ?";
+        String sqlStaff = "UPDATE Staff SET divisionId = ?, roleId = ?, [group] = ? WHERE id = ?";
 
         try (PreparedStatement psUser = connection.prepareStatement(sqlUser)) {
             psUser.setString(1, staff.getUsername());
@@ -83,9 +94,17 @@ public class UserDAO extends DBContext {
             int updatedUser = psUser.executeUpdate();
 
             try (PreparedStatement psStaff = connection.prepareStatement(sqlStaff)) {
-                psStaff.setString(1, staff.getDivision());
-                psStaff.setString(2, staff.getRole());
-                psStaff.setInt(3, staff.getId());
+                psStaff.setInt(1, staff.getDivisionId());
+                psStaff.setInt(2, staff.getRoleId());
+                
+                // Xử lý trường group có thể null
+                if (staff.getGroup() != null) {
+                    psStaff.setString(3, staff.getGroup());
+                } else {
+                    psStaff.setNull(3, Types.NVARCHAR);
+                }
+                
+                psStaff.setInt(4, staff.getId());
                 int updatedStaff = psStaff.executeUpdate();
                 return updatedUser > 0 && updatedStaff > 0;
             }
@@ -111,9 +130,12 @@ public class UserDAO extends DBContext {
     // Get all staff members
     public List<Staff> getAllStaff() {
         List<Staff> staffList = new ArrayList<>();
-        String sql = "SELECT u.id, u.username, u.fullName, u.email, s.division, s.role "
+        String sql = "SELECT u.id, u.username, u.fullName, u.email, "
+                + "s.divisionId, d.divisionName, s.roleId, r.roleName, s.[group] "
                 + "FROM Users u "
-                + "JOIN Staff s ON u.id = s.id";
+                + "JOIN Staff s ON u.id = s.id "
+                + "JOIN Division d ON s.divisionId = d.divisionId "
+                + "JOIN Role r ON s.roleId = r.roleId";
 
         try (PreparedStatement ps = connection.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -127,9 +149,12 @@ public class UserDAO extends DBContext {
 
     // Find staff by ID
     public Staff findStaffById(int id) {
-        String sql = "SELECT u.id, u.username, u.fullName, u.email, s.division, s.role "
+        String sql = "SELECT u.id, u.username, u.fullName, u.email, "
+                + "s.divisionId, d.divisionName, s.roleId, r.roleName, s.[group] "
                 + "FROM Users u "
                 + "JOIN Staff s ON u.id = s.id "
+                + "JOIN Division d ON s.divisionId = d.divisionId "
+                + "JOIN Role r ON s.roleId = r.roleId "
                 + "WHERE u.id = ?";
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -146,18 +171,19 @@ public class UserDAO extends DBContext {
     }
 
     public Staff findUserByUsername(String username) {
-        String sql = "SELECT * FROM Users WHERE username = ?";
+        String sql = "SELECT u.id, u.username, u.email, u.fullName, "
+                + "s.divisionId, d.divisionName, s.roleId, r.roleName, s.[group] "
+                + "FROM Users u "
+                + "LEFT JOIN Staff s ON u.id = s.id "
+                + "LEFT JOIN Division d ON s.divisionId = d.divisionId "
+                + "LEFT JOIN Role r ON s.roleId = r.roleId "
+                + "WHERE u.username = ?";
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    Staff user = new Staff();
-                    user.setId(rs.getInt("id"));
-                    user.setUsername(rs.getString("username"));
-                    user.setEmail(rs.getString("email"));
-                    user.setFullName(rs.getString("fullName"));
-                    return user;
+                    return mapResultSetToStaff(rs);
                 }
             }
         } catch (SQLException ex) {
@@ -173,8 +199,52 @@ public class UserDAO extends DBContext {
         staff.setUsername(rs.getString("username"));
         staff.setFullName(rs.getString("fullName"));
         staff.setEmail(rs.getString("email"));
-        staff.setDivision(rs.getString("division"));
-        staff.setRole(rs.getString("role"));
+        
+        staff.setDivisionId(rs.getInt("divisionId"));
+        staff.setDivisionName(rs.getString("divisionName"));
+        staff.setRoleId(rs.getInt("roleId"));
+        staff.setRoleName(rs.getString("roleName"));
+        
+        // Xử lý trường group có thể null
+        String group = rs.getString("group");
+        if (rs.wasNull()) {
+            staff.setGroup(null);
+        } else {
+            staff.setGroup(group);
+        }
+        
         return staff;
+    }
+    
+    // Phương thức tiện ích để lấy tất cả các Division
+    public Map<Integer, String> getAllDivisions() {
+        Map<Integer, String> divisions = new HashMap<>();
+        String sql = "SELECT divisionId, divisionName FROM Division";
+        
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                divisions.put(rs.getInt("divisionId"), rs.getString("divisionName"));
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return divisions;
+    }
+    
+    // Phương thức tiện ích để lấy tất cả các Role
+    public Map<Integer, String> getAllRoles() {
+        Map<Integer, String> roles = new HashMap<>();
+        String sql = "SELECT roleId, roleName FROM Role";
+        
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                roles.put(rs.getInt("roleId"), rs.getString("roleName"));
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return roles;
     }
 }

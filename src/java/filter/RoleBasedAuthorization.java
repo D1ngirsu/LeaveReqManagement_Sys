@@ -53,7 +53,7 @@ public class RoleBasedAuthorization implements Filter {
             if (requestURI.contains(entry.getKey())) {
                 // This is a protected path, check user's role
                 Staff staff = (Staff) session.getAttribute("staff");
-                if (!entry.getValue().contains(staff.getRole())) {
+                if (!entry.getValue().contains(staff.getRoleName())) {
                     // User doesn't have permission
                     res.sendRedirect(req.getContextPath() + "/access-denied.jsp");
                     return;

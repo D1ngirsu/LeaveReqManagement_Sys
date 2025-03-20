@@ -17,12 +17,37 @@ CREATE TABLE Users (
 );
 GO
 
--- Staff table (extends Users)
+-- Bảng Division mới
+CREATE TABLE Division (
+    divisionId INT PRIMARY KEY IDENTITY(1,1),
+    divisionName VARCHAR(20) UNIQUE NOT NULL
+);
+GO
+
+-- Thêm các giá trị mặc định cho bảng Division
+INSERT INTO Division (divisionName) VALUES ('IT'), ('QA'), ('Sale');
+GO
+
+-- Bảng Role mới
+CREATE TABLE Role (
+    roleId INT PRIMARY KEY IDENTITY(1,1),
+    roleName NVARCHAR(50) UNIQUE NOT NULL
+);
+GO
+
+-- Thêm các giá trị mặc định cho bảng Role
+INSERT INTO Role (roleName) VALUES (N'Division Leader'), (N'Trưởng nhóm'), (N'Nhân viên');
+GO
+
+-- Staff table (extends Users) với các thay đổi
 CREATE TABLE Staff (
     id INT PRIMARY KEY,
-    division VARCHAR(20) NOT NULL CHECK (division IN ('IT', 'QA', 'Sale')),
-    role NVARCHAR(50) NOT NULL CHECK (role IN (N'Division Leader', N'Trưởng nhóm', N'Nhân viên')),
-    FOREIGN KEY (id) REFERENCES Users(id) ON DELETE CASCADE
+    divisionId INT NOT NULL,
+    roleId INT NOT NULL,
+    [group] NVARCHAR(50) NULL,  -- Thêm trường group, có thể NULL
+    FOREIGN KEY (id) REFERENCES Users(id) ON DELETE CASCADE,
+    FOREIGN KEY (divisionId) REFERENCES Division(divisionId),
+    FOREIGN KEY (roleId) REFERENCES Role(roleId)
 );
 GO
 
@@ -38,4 +63,3 @@ CREATE TABLE LeaveRequests (
     createdAt DATETIME DEFAULT GETDATE()
 );
 GO
-

@@ -33,7 +33,7 @@ public class LeaveRequestReviewServlet extends HttpServlet {
         }
 
         // Kiểm tra quyền truy cập
-        if (currentUser.getRole().equals("Nhân viên")) {
+        if (currentUser.getRoleName().equals("Nhân viên")) {
             response.sendRedirect(request.getContextPath() + "/access-denied.jsp");
             return;
         }
@@ -42,23 +42,35 @@ public class LeaveRequestReviewServlet extends HttpServlet {
         LeaveRequestDAO leaveRequestDAO = new LeaveRequestDAO();
         List<LeaveRequest> leaveRequests;
 
-        if (currentUser.getRole().equals("Division Leader")) {
+        if (currentUser.getRoleName().equals("Division Leader")) {
             // Division Leader xem các request của:
             // 1. Trưởng nhóm và Nhân viên cùng division
             // 2. Của chính mình
             leaveRequests = leaveRequestDAO.getAllLeaveRequests().stream()
                 .filter(lr -> 
                     // Requests của Trưởng nhóm và Nhân viên cùng division
-                    ((lr.getOwner().getRole().equals("Trưởng nhóm") || lr.getOwner().getRole().equals("Nhân viên"))
-                        && lr.getOwner().getDivision().equals(currentUser.getDivision())) ||
+                    ((lr.getOwner().getRoleName().equals("Trưởng nhóm") || lr.getOwner().getRoleName().equals("Nhân viên"))
+                        && lr.getOwner().getDivisionId() == currentUser.getDivisionId()) ||
                     // Requests của chính Division Leader
                     lr.getOwner().getId() == currentUser.getId())
                 .collect(Collectors.toList());
-        } else if (currentUser.getRole().equals("Trưởng nhóm")) {
-            // Trưởng nhóm chỉ xem request của Nhân viên cùng division
+        } else if (currentUser.getRoleName().equals("Trưởng nhóm")) {
+            // Trưởng nhóm chỉ xem request của Nhân viên cùng division và cùng group (nếu có)
             leaveRequests = leaveRequestDAO.getAllLeaveRequests().stream()
-                .filter(lr -> lr.getOwner().getRole().equals("Nhân viên") 
-                        && lr.getOwner().getDivision().equals(currentUser.getDivision()))
+                .filter(lr -> {
+                    // Nếu owner là Nhân viên và cùng division
+                    boolean sameRole = lr.getOwner().getRoleName().equals("Nhân viên");
+                    boolean sameDivision = lr.getOwner().getDivisionId() == currentUser.getDivisionId();
+                    
+                    // Kiểm tra nếu cả hai có cùng group (nếu group của Trưởng nhóm không null)
+                    boolean sameGroup = true; // Mặc định là true để không ảnh hưởng nếu group null
+                    if (currentUser.getGroup() != null) {
+                        // Nếu Trưởng nhóm có group, thì nhân viên phải cùng group
+                        sameGroup = currentUser.getGroup().equals(lr.getOwner().getGroup());
+                    }
+                    
+                    return sameRole && sameDivision && sameGroup;
+                })
                 .collect(Collectors.toList());
         } else {
             // Trường hợp không được phép
@@ -82,7 +94,7 @@ public class LeaveRequestReviewServlet extends HttpServlet {
         }
 
         // Kiểm tra quyền truy cập
-        if (currentUser.getRole().equals("Nhân viên")) {
+        if (currentUser.getRoleName().equals("Nhân viên")) {
             response.sendRedirect(request.getContextPath() + "/access-denied.jsp");
             return;
         }
@@ -96,21 +108,29 @@ public class LeaveRequestReviewServlet extends HttpServlet {
             LeaveRequest leaveRequest = leaveRequestDAO.findLeaveRequestById(requestId);
 
             // Kiểm tra quyền duyệt request
-            if (currentUser.getRole().equals("Division Leader")) {
+            if (currentUser.getRoleName().equals("Division Leader")) {
                 // Division Leader có thể duyệt:
                 // 1. Request của Trưởng nhóm và Nhân viên cùng division
                 // 2. Request của chính mình
-                if (!((leaveRequest.getOwner().getRole().equals("Trưởng nhóm") || 
-                       leaveRequest.getOwner().getRole().equals("Nhân viên")) &&
-                      leaveRequest.getOwner().getDivision().equals(currentUser.getDivision())) &&
+                if (!((leaveRequest.getOwner().getRoleName().equals("Trưởng nhóm") || 
+                       leaveRequest.getOwner().getRoleName().equals("Nhân viên")) &&
+                      leaveRequest.getOwner().getDivisionId() == currentUser.getDivisionId()) &&
                     leaveRequest.getOwner().getId() != currentUser.getId()) {
                     response.sendRedirect(request.getContextPath() + "/access-denied.jsp");
                     return;
                 }
-            } else if (currentUser.getRole().equals("Trưởng nhóm")) {
-                // Trưởng nhóm chỉ duyệt request của Nhân viên cùng division
-                if (!leaveRequest.getOwner().getRole().equals("Nhân viên") ||
-                    !leaveRequest.getOwner().getDivision().equals(currentUser.getDivision())) {
+            } else if (currentUser.getRoleName().equals("Trưởng nhóm")) {
+                // Trưởng nhóm chỉ duyệt request của Nhân viên cùng division và cùng group (nếu có)
+                boolean sameRole = leaveRequest.getOwner().getRoleName().equals("Nhân viên");
+                boolean sameDivision = leaveRequest.getOwner().getDivisionId() == currentUser.getDivisionId();
+                
+                boolean sameGroup = true; // Mặc định là true để không ảnh hưởng nếu group null
+                if (currentUser.getGroup() != null) {
+                    // Nếu Trưởng nhóm có group, thì nhân viên phải cùng group
+                    sameGroup = currentUser.getGroup().equals(leaveRequest.getOwner().getGroup());
+                }
+                
+                if (!(sameRole && sameDivision && sameGroup)) {
                     response.sendRedirect(request.getContextPath() + "/access-denied.jsp");
                     return;
                 }
