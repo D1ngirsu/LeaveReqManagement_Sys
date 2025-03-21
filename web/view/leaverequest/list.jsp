@@ -108,6 +108,97 @@
                 border-radius: 4px;
                 font-weight: 500;
             }
+            .edit-btn {
+                display: inline-block;
+                padding: 0.25rem 0.5rem;
+                background-color: #3498db;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+                font-size: 0.85rem;
+            }
+            .edit-btn-disabled {
+                background-color: #bdc3c7;
+                cursor: not-allowed;
+            }
+            /* Search form styles */
+            .search-form {
+                margin-bottom: 2rem;
+                background-color: #f8f9fa;
+                padding: 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            }
+            .form-row {
+                display: flex;
+                flex-wrap: wrap;
+                margin: 0 -0.5rem 1rem;
+            }
+            .form-group {
+                flex: 1 0 200px;
+                padding: 0 0.5rem;
+                margin-bottom: 1rem;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                color: #2c3e50;
+                font-weight: 500;
+            }
+            .form-control {
+                width: 100%;
+                padding: 0.75rem;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-family: inherit;
+                font-size: 0.95rem;
+            }
+            .form-control:focus {
+                outline: none;
+                border-color: #3498db;
+                box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+            }
+            .form-button {
+                background-color: #3498db;
+                color: white;
+                padding: 0.75rem 1.5rem;
+                border: none;
+                border-radius: 6px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+            .form-button:hover {
+                background-color: #2980b9;
+            }
+            /* Pagination styles */
+            .pagination {
+                display: flex;
+                justify-content: center;
+                margin-top: 2rem;
+                list-style: none;
+            }
+            .pagination-item {
+                margin: 0 0.25rem;
+            }
+            .pagination-link {
+                display: block;
+                padding: 0.5rem 0.75rem;
+                background-color: white;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                color: #3498db;
+                text-decoration: none;
+                transition: all 0.3s;
+            }
+            .pagination-link.active {
+                background-color: #3498db;
+                color: white;
+                border-color: #3498db;
+            }
+            .pagination-link:hover:not(.active) {
+                background-color: #f5f5f5;
+            }
         </style>
     </head>
     <body>
@@ -127,9 +218,43 @@
                 </div>
             </c:if>
 
+            <!-- Search Form -->
+            <div class="search-form">
+                <form action="${pageContext.request.contextPath}/leave/list" method="post">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" id="title" name="title" class="form-control" value="${title}">
+                        </div>
+                        <div class="form-group">
+                            <label for="fromDate" class="form-label">From Date</label>
+                            <input type="date" id="fromDate" name="fromDate" class="form-control" value="${fromDate}">
+                        </div>
+                        <div class="form-group">
+                            <label for="toDate" class="form-label">To Date</label>
+                            <input type="date" id="toDate" name="toDate" class="form-control" value="${toDate}">
+                        </div>
+                        <div class="form-group">
+                            <label for="status" class="form-label">Status</label>
+                            <select id="status" name="status" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="1" ${status == 1 ? 'selected' : ''}>Pending</option>
+                                <option value="2" ${status == 2 ? 'selected' : ''}>Approved</option>
+                                <option value="0" ${status == 0 ? 'selected' : ''}>Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <button type="submit" class="form-button">Search</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
             <c:if test="${empty leaveRequests}">
                 <div class="empty-message">
-                    <p>You have no leave requests.</p>
+                    <p>No leave requests found matching your criteria.</p>
                 </div>
             </c:if>
 
@@ -183,6 +308,38 @@
                         </c:forEach>
                     </tbody>
                 </table>
+
+                <!-- Pagination -->
+                <c:if test="${totalPages > 1}">
+                    <ul class="pagination">
+                        <c:if test="${currentPage > 1}">
+                            <li class="pagination-item">
+                                <a href="${pageContext.request.contextPath}/leave/list?page=${currentPage - 1}${not empty title ? '&title=' : ''}${not empty title ? title : ''}${not empty fromDate ? '&fromDate=' : ''}${not empty fromDate ? fromDate : ''}${not empty toDate ? '&toDate=' : ''}${not empty toDate ? toDate : ''}${status != null ? '&status=' : ''}${status != null ? status : ''}" class="pagination-link">Previous</a>
+                            </li>
+                        </c:if>
+                        
+                        <c:forEach begin="1" end="${totalPages}" var="i">
+                            <c:choose>
+                                <c:when test="${currentPage eq i}">
+                                    <li class="pagination-item">
+                                        <span class="pagination-link active">${i}</span>
+                                    </li>
+                                </c:when>
+                                <c:otherwise>
+                                    <li class="pagination-item">
+                                        <a href="${pageContext.request.contextPath}/leave/list?page=${i}${not empty title ? '&title=' : ''}${not empty title ? title : ''}${not empty fromDate ? '&fromDate=' : ''}${not empty fromDate ? fromDate : ''}${not empty toDate ? '&toDate=' : ''}${not empty toDate ? toDate : ''}${status != null ? '&status=' : ''}${status != null ? status : ''}" class="pagination-link">${i}</a>
+                                    </li>
+                                </c:otherwise>
+                            </c:choose>
+                        </c:forEach>
+                        
+                        <c:if test="${currentPage < totalPages}">
+                            <li class="pagination-item">
+                                <a href="${pageContext.request.contextPath}/leave/list?page=${currentPage + 1}${not empty title ? '&title=' : ''}${not empty title ? title : ''}${not empty fromDate ? '&fromDate=' : ''}${not empty fromDate ? fromDate : ''}${not empty toDate ? '&toDate=' : ''}${not empty toDate ? toDate : ''}${status != null ? '&status=' : ''}${status != null ? status : ''}" class="pagination-link">Next</a>
+                            </li>
+                        </c:if>
+                    </ul>
+                </c:if>
             </c:if>
         </div>
     </body>
