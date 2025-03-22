@@ -57,7 +57,7 @@ public class LeaveRequestReviewServlet extends HttpServlet {
             }
             
             // Xử lý tham số ngày
-            SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             Date fromDate = null;
             Date toDate = null;
             

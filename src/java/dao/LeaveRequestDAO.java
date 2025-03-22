@@ -46,87 +46,87 @@ public class LeaveRequestDAO extends DBContext {
     }
 
     // Get all leave requests with search, filter and pagination
-    public List<LeaveRequest> getAllLeaveRequests(String title, Date fromDate, Date toDate, 
+    public List<LeaveRequest> getAllLeaveRequests(String title, Date fromDate, Date toDate,
             String createdBy, String ownerName, Integer status, int page, int pageSize) {
         List<LeaveRequest> requests = new ArrayList<>();
         StringBuilder sqlBuilder = new StringBuilder("SELECT lr.* FROM LeaveRequests lr ");
-        
+
         // Join with User table for createdBy search
         if (createdBy != null && !createdBy.trim().isEmpty()) {
             sqlBuilder.append("JOIN Users u ON lr.createdBy = u.username ");
         }
-        
+
         // Join with Staff table for owner search
         if (ownerName != null && !ownerName.trim().isEmpty()) {
             sqlBuilder.append("JOIN Staff s ON lr.ownerId = s.id ");
             sqlBuilder.append("JOIN Users u2 ON s.userId = u2.id ");
         }
-        
+
         sqlBuilder.append("WHERE 1=1 ");
-        
+
         // Add search conditions
         if (title != null && !title.trim().isEmpty()) {
             sqlBuilder.append("AND lr.title LIKE ? ");
         }
-        
+
         if (fromDate != null) {
             sqlBuilder.append("AND lr.createdAt >= ? ");
         }
-        
+
         if (toDate != null) {
             sqlBuilder.append("AND lr.createdAt <= ? ");
         }
-        
+
         if (createdBy != null && !createdBy.trim().isEmpty()) {
             sqlBuilder.append("AND (u.username LIKE ? OR u.fullName LIKE ?) ");
         }
-        
+
         if (ownerName != null && !ownerName.trim().isEmpty()) {
             sqlBuilder.append("AND (u2.username LIKE ? OR u2.fullName LIKE ?) ");
         }
-        
+
         if (status != null) {
             sqlBuilder.append("AND lr.status = ? ");
         }
-        
+
         // Add order by and pagination
         sqlBuilder.append("ORDER BY lr.createdAt DESC ");
         sqlBuilder.append("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
-        
+
         try (PreparedStatement ps = connection.prepareStatement(sqlBuilder.toString())) {
             int paramIndex = 1;
-            
+
             // Set parameters for search conditions
             if (title != null && !title.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + title + "%");
             }
-            
+
             if (fromDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(fromDate.getTime()));
             }
-            
+
             if (toDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(toDate.getTime()));
             }
-            
+
             if (createdBy != null && !createdBy.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + createdBy + "%");
                 ps.setString(paramIndex++, "%" + createdBy + "%");
             }
-            
+
             if (ownerName != null && !ownerName.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + ownerName + "%");
                 ps.setString(paramIndex++, "%" + ownerName + "%");
             }
-            
+
             if (status != null) {
                 ps.setInt(paramIndex++, status);
             }
-            
+
             // Set pagination parameters
             ps.setInt(paramIndex++, (page - 1) * pageSize);
             ps.setInt(paramIndex, pageSize);
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     requests.add(mapResultSetToLeaveRequest(rs));
@@ -137,80 +137,80 @@ public class LeaveRequestDAO extends DBContext {
         }
         return requests;
     }
-    
+
     // Count total leave requests for pagination
-    public int countAllLeaveRequests(String title, Date fromDate, Date toDate, 
+    public int countAllLeaveRequests(String title, Date fromDate, Date toDate,
             String createdBy, String ownerName, Integer status) {
         StringBuilder sqlBuilder = new StringBuilder("SELECT COUNT(*) FROM LeaveRequests lr ");
-        
+
         // Join with User table for createdBy search
         if (createdBy != null && !createdBy.trim().isEmpty()) {
             sqlBuilder.append("JOIN Users u ON lr.createdBy = u.username ");
         }
-        
+
         // Join with Staff table for owner search
         if (ownerName != null && !ownerName.trim().isEmpty()) {
             sqlBuilder.append("JOIN Staff s ON lr.ownerId = s.id ");
             sqlBuilder.append("JOIN Users u2 ON s.userId = u2.id ");
         }
-        
+
         sqlBuilder.append("WHERE 1=1 ");
-        
+
         // Add search conditions
         if (title != null && !title.trim().isEmpty()) {
             sqlBuilder.append("AND lr.title LIKE ? ");
         }
-        
+
         if (fromDate != null) {
             sqlBuilder.append("AND lr.createdAt >= ? ");
         }
-        
+
         if (toDate != null) {
             sqlBuilder.append("AND lr.createdAt <= ? ");
         }
-        
+
         if (createdBy != null && !createdBy.trim().isEmpty()) {
             sqlBuilder.append("AND (u.username LIKE ? OR u.fullName LIKE ?) ");
         }
-        
+
         if (ownerName != null && !ownerName.trim().isEmpty()) {
             sqlBuilder.append("AND (u2.username LIKE ? OR u2.fullName LIKE ?) ");
         }
-        
+
         if (status != null) {
             sqlBuilder.append("AND lr.status = ? ");
         }
-        
+
         try (PreparedStatement ps = connection.prepareStatement(sqlBuilder.toString())) {
             int paramIndex = 1;
-            
+
             // Set parameters for search conditions
             if (title != null && !title.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + title + "%");
             }
-            
+
             if (fromDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(fromDate.getTime()));
             }
-            
+
             if (toDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(toDate.getTime()));
             }
-            
+
             if (createdBy != null && !createdBy.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + createdBy + "%");
                 ps.setString(paramIndex++, "%" + createdBy + "%");
             }
-            
+
             if (ownerName != null && !ownerName.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + ownerName + "%");
                 ps.setString(paramIndex++, "%" + ownerName + "%");
             }
-            
+
             if (status != null) {
                 ps.setInt(paramIndex, status);
             }
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1);
@@ -274,59 +274,59 @@ public class LeaveRequestDAO extends DBContext {
     }
 
     // Get all leave requests by owner ID with search, filter and pagination
-    public List<LeaveRequest> getLeaveRequestsByOwner(int ownerId, String title, Date fromDate, 
+    public List<LeaveRequest> getLeaveRequestsByOwner(int ownerId, String title, Date fromDate,
             Date toDate, Integer status, int page, int pageSize) {
         List<LeaveRequest> requests = new ArrayList<>();
         StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM LeaveRequests WHERE ownerId = ? ");
-        
+
         // Add search conditions
         if (title != null && !title.trim().isEmpty()) {
             sqlBuilder.append("AND title LIKE ? ");
         }
-        
+
         if (fromDate != null) {
             sqlBuilder.append("AND createdAt >= ? ");
         }
-        
+
         if (toDate != null) {
             sqlBuilder.append("AND createdAt <= ? ");
         }
-        
+
         if (status != null) {
             sqlBuilder.append("AND status = ? ");
         }
-        
+
         // Add order by and pagination
         sqlBuilder.append("ORDER BY createdAt DESC ");
         sqlBuilder.append("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
 
         try (PreparedStatement ps = connection.prepareStatement(sqlBuilder.toString())) {
             int paramIndex = 1;
-            
+
             // Set owner ID parameter
             ps.setInt(paramIndex++, ownerId);
-            
+
             // Set parameters for search conditions
             if (title != null && !title.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + title + "%");
             }
-            
+
             if (fromDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(fromDate.getTime()));
             }
-            
+
             if (toDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(toDate.getTime()));
             }
-            
+
             if (status != null) {
                 ps.setInt(paramIndex++, status);
             }
-            
+
             // Set pagination parameters
             ps.setInt(paramIndex++, (page - 1) * pageSize);
             ps.setInt(paramIndex, pageSize);
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     requests.add(mapResultSetToLeaveRequest(rs));
@@ -337,52 +337,52 @@ public class LeaveRequestDAO extends DBContext {
         }
         return requests;
     }
-    
+
     // Count total leave requests by owner for pagination
-    public int countLeaveRequestsByOwner(int ownerId, String title, Date fromDate, 
+    public int countLeaveRequestsByOwner(int ownerId, String title, Date fromDate,
             Date toDate, Integer status) {
         StringBuilder sqlBuilder = new StringBuilder("SELECT COUNT(*) FROM LeaveRequests WHERE ownerId = ? ");
-        
+
         // Add search conditions
         if (title != null && !title.trim().isEmpty()) {
             sqlBuilder.append("AND title LIKE ? ");
         }
-        
+
         if (fromDate != null) {
             sqlBuilder.append("AND createdAt >= ? ");
         }
-        
+
         if (toDate != null) {
             sqlBuilder.append("AND createdAt <= ? ");
         }
-        
+
         if (status != null) {
             sqlBuilder.append("AND status = ? ");
         }
 
         try (PreparedStatement ps = connection.prepareStatement(sqlBuilder.toString())) {
             int paramIndex = 1;
-            
+
             // Set owner ID parameter
             ps.setInt(paramIndex++, ownerId);
-            
+
             // Set parameters for search conditions
             if (title != null && !title.trim().isEmpty()) {
                 ps.setString(paramIndex++, "%" + title + "%");
             }
-            
+
             if (fromDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(fromDate.getTime()));
             }
-            
+
             if (toDate != null) {
                 ps.setDate(paramIndex++, new java.sql.Date(toDate.getTime()));
             }
-            
+
             if (status != null) {
                 ps.setInt(paramIndex, status);
             }
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1);
