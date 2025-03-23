@@ -210,6 +210,7 @@
 </head>
 <body>
     <div class="container">
+        <jsp:include page="../../layout/leftNavbar.jsp" />
         <h1>Review Leave Requests</h1>
 
         <c:if test="${not empty error}">

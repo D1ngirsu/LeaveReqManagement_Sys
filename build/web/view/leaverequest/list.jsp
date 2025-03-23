@@ -203,6 +203,7 @@
     </head>
     <body>
         <div class="container">
+            <jsp:include page="../../layout/leftNavbar.jsp" />
             <h1>My Leave Requests</h1>
 
             <div class="action-links">

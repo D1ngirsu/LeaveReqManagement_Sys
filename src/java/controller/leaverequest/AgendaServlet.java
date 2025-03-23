@@ -10,11 +10,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import model.LeaveRequest;
 import model.Staff;
 import dao.UserDAO;
@@ -27,36 +29,120 @@ public class AgendaServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            // Get start and end date parameters, or use defaults (current month)
+            // Get current user from session
+            HttpSession session = request.getSession();
+            Staff currentUser = (Staff) session.getAttribute("staff");
+
+            // Get month/year parameters or navigation action
+            String monthParam = request.getParameter("month");
+            String yearParam = request.getParameter("year");
+            String navAction = request.getParameter("nav");
+            
+            // Get start and end date parameters
             String startDateParam = request.getParameter("startDate");
             String endDateParam = request.getParameter("endDate");
 
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             Date startDate;
             Date endDate;
-
-            if (startDateParam == null || startDateParam.isEmpty()) {
-                // Default to beginning of current month
+            
+            Calendar current = Calendar.getInstance();
+            int year = current.get(Calendar.YEAR);
+            int month = current.get(Calendar.MONTH);
+            
+            boolean customDateRange = false;
+            
+            if (startDateParam != null && !startDateParam.isEmpty() && 
+                endDateParam != null && !endDateParam.isEmpty()) {
+                // Custom date range specified
+                startDate = sdf.parse(startDateParam);
+                endDate = sdf.parse(endDateParam);
+                
+                // Ensure date range doesn't exceed 30 days
+                Calendar tempEnd = Calendar.getInstance();
+                tempEnd.setTime(startDate);
+                tempEnd.add(Calendar.DAY_OF_MONTH, 30);
+                
+                if (endDate.after(tempEnd.getTime())) {
+                    endDate = tempEnd.getTime();
+                    request.setAttribute("warningMessage", "Date range limited to 30 days maximum.");
+                }
+                
+                customDateRange = true;
+                
+            } else if (navAction != null) {
+                // Month navigation
+                if (monthParam != null && !monthParam.isEmpty() && 
+                    yearParam != null && !yearParam.isEmpty()) {
+                    month = Integer.parseInt(monthParam);
+                    year = Integer.parseInt(yearParam);
+                }
+                
+                if ("prev".equals(navAction)) {
+                    if (month == 0) {
+                        month = 11;
+                        year--;
+                    } else {
+                        month--;
+                    }
+                } else if ("next".equals(navAction)) {
+                    if (month == 11) {
+                        month = 0;
+                        year++;
+                    } else {
+                        month++;
+                    }
+                }
+                
+                // Set to first day of the month
+                Calendar cal = Calendar.getInstance();
+                cal.set(year, month, 1);
+                startDate = cal.getTime();
+                
+                // Set to last day of the month
+                cal.add(Calendar.MONTH, 1);
+                cal.add(Calendar.DAY_OF_MONTH, -1);
+                endDate = cal.getTime();
+                
+            } else if (monthParam != null && !monthParam.isEmpty() && 
+                       yearParam != null && !yearParam.isEmpty()) {
+                // Month and year parameters specified
+                month = Integer.parseInt(monthParam);
+                year = Integer.parseInt(yearParam);
+                
+                // Set to first day of the month
+                Calendar cal = Calendar.getInstance();
+                cal.set(year, month, 1);
+                startDate = cal.getTime();
+                
+                // Set to last day of the month
+                cal.add(Calendar.MONTH, 1);
+                cal.add(Calendar.DAY_OF_MONTH, -1);
+                endDate = cal.getTime();
+                
+            } else {
+                // Default to current month
                 Calendar cal = Calendar.getInstance();
                 cal.set(Calendar.DAY_OF_MONTH, 1);
                 startDate = cal.getTime();
-            } else {
-                startDate = sdf.parse(startDateParam);
-            }
-
-            if (endDateParam == null || endDateParam.isEmpty()) {
-                // Default to start date + 8 days (to show 9 days total)
-                Calendar cal = Calendar.getInstance();
-                cal.setTime(startDate);
-                cal.add(Calendar.DAY_OF_MONTH, 8); // 9 days total (from 1/1 to 9/1)
+                
+                cal.add(Calendar.MONTH, 1);
+                cal.add(Calendar.DAY_OF_MONTH, -1);
                 endDate = cal.getTime();
-            } else {
-                endDate = sdf.parse(endDateParam);
             }
 
             // Get all staff members
             UserDAO userDAO = new UserDAO();
             List<Staff> staffList = userDAO.getAllStaff();
+            
+            // Filter staff list only if user is a Division Leader
+            if (currentUser != null && currentUser.getRoleName().equals("Division Leader")) {
+                // Division Leader can see staff in the same division
+                int divisionId = currentUser.getDivisionId();
+                staffList = staffList.stream()
+                    .filter(staff -> staff.getDivisionId() == divisionId)
+                    .collect(Collectors.toList());
+            }
 
             // Get leave requests for the date range
             LeaveRequestDAO leaveDAO = new LeaveRequestDAO();
@@ -66,10 +152,15 @@ public class AgendaServlet extends HttpServlet {
             java.sql.Date sqlStartDate = new java.sql.Date(startDate.getTime());
             java.sql.Date sqlEndDate = new java.sql.Date(endDate.getTime());
 
-            // Collect leave requests for all staff
-            for (Staff staff : staffList) {
-                // For better performance, you might want to modify the DAO to get all leaves in one query
-                allLeaveRequests = leaveDAO.findLeaveRequestsByDateRange(null, sqlStartDate, sqlEndDate);
+            // Get all leave requests for the date range
+            allLeaveRequests = leaveDAO.findLeaveRequestsByDateRange(null, sqlStartDate, sqlEndDate);
+            
+            // Filter leave requests if user is a Division Leader
+            if (currentUser != null && currentUser.getRoleName().equals("Division Leader")) {
+                int divisionId = currentUser.getDivisionId();
+                allLeaveRequests = allLeaveRequests.stream()
+                    .filter(leave -> leave.getOwner() != null && leave.getOwner().getDivisionId() == divisionId)
+                    .collect(Collectors.toList());
             }
 
             System.out.println("Total leave requests found: " + allLeaveRequests.size());
@@ -91,9 +182,8 @@ public class AgendaServlet extends HttpServlet {
             }
 
             // Populate leave statuses
-            // In AgendaServlet.java, check this section:
             for (LeaveRequest leave : allLeaveRequests) {
-                if (leave.getStartDate() == null || leave.getEndDate() == null) {
+                if (leave.getStartDate() == null || leave.getEndDate() == null || leave.getOwner() == null) {
                     continue;
                 }
 
@@ -111,7 +201,9 @@ public class AgendaServlet extends HttpServlet {
 
                     // Add to the map for this staff member
                     Map<String, Integer> dateStatusMap = staffLeaveStatus.get(leave.getOwner().getId());
-                    dateStatusMap.put(dateStr, leave.getStatus());
+                    if (dateStatusMap != null) {
+                        dateStatusMap.put(dateStr, leave.getStatus());
+                    }
 
                     currentDate.add(Calendar.DAY_OF_MONTH, 1);
                 }
@@ -131,12 +223,25 @@ public class AgendaServlet extends HttpServlet {
                 currentDate.add(Calendar.DAY_OF_MONTH, 1);
             }
 
+            // Get today's date for highlighting
+            Date today = new Date();
+            SimpleDateFormat todayFormat = new SimpleDateFormat("yyyy-MM-dd");
+            String todayStr = todayFormat.format(today);
+
             // Set attributes for JSP
             request.setAttribute("staffList", staffList);
             request.setAttribute("displayDates", displayDates);
             request.setAttribute("staffLeaveStatus", staffLeaveStatus);
-
-            // Format for JSP display
+            request.setAttribute("today", todayStr);
+            request.setAttribute("currentMonth", month);
+            request.setAttribute("currentYear", year);
+            request.setAttribute("customDateRange", customDateRange);
+            request.setAttribute("startDate", sdf.format(startDate));
+            request.setAttribute("endDate", sdf.format(endDate));
+            
+            // Format for display
+            SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM yyyy");
+            request.setAttribute("monthYearDisplay", monthFormat.format(startDate));
             request.setAttribute("dateFormat", new SimpleDateFormat("d/M"));
 
         } catch (ParseException e) {

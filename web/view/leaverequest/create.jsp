@@ -107,6 +107,7 @@
     </head>
     <body>
         <div class="container">
+            <jsp:include page="../../layout/leftNavbar.jsp" />
             <h1>Create New Leave Request</h1>
 
             <c:if test="${not empty error}">

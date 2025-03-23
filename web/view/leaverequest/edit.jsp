@@ -78,6 +78,7 @@
 </head>
 <body>
     <div class="container">
+        <jsp:include page="../../layout/leftNavbar.jsp" />
         <h1>Edit Leave Request</h1>
 
         <c:if test="${not empty error}">

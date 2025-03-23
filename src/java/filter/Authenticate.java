@@ -26,7 +26,7 @@ public class Authenticate implements Filter {
         "/login", "/login.jsp", "/forgot-password.jsp",
         "/register.jsp", "/verify.jsp", "/new-password.jsp", "/reset-verify.jsp",
         "/register", "/logingg", "/reset-password",
-        "/assets/", "/layout/"
+        "/layout/"
     );
     
     private static final boolean debug = true;
@@ -42,26 +42,31 @@ public class Authenticate implements Filter {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse res = (HttpServletResponse) response;
         String requestURI = req.getRequestURI();
+        String contextPath = req.getContextPath();
         HttpSession session = req.getSession(false);
+        
+        // Xử lý đặc biệt khi truy cập trang chủ hoặc index.jsp
+        if (requestURI.equals(contextPath + "/") || 
+            requestURI.equals(contextPath) || 
+            requestURI.endsWith("/")) {
+            res.sendRedirect(contextPath + "/login.jsp");
+            return;
+        }
 
-        // Nếu URL thuộc danh sách được phép -> cho phép truy cập
+        // Kiểm tra URL có thuộc danh sách được phép không
         if (isAllowed(requestURI)) {
             chain.doFilter(request, response);
             return;
         }
 
-        // Nếu user đã đăng nhập (staff hoặc nhân viên) -> cho phép truy cập
+        // Kiểm tra user đã đăng nhập chưa
         if (session != null && session.getAttribute("staff") != null) {
             chain.doFilter(request, response);
             return;
         }
 
-        // Nếu chưa đăng nhập và không phải đang ở /login -> Redirect về trang đăng nhập
-        if (!requestURI.endsWith("/login") && !requestURI.endsWith("/login.jsp")) {
-            res.sendRedirect(req.getContextPath() + "/login");
-        } else {
-            chain.doFilter(request, response);
-        }
+        // Nếu chưa đăng nhập, chuyển hướng về trang login
+        res.sendRedirect(contextPath + "/login.jsp");
     }
 
     private boolean isAllowed(String requestURI) {
@@ -70,7 +75,7 @@ public class Authenticate implements Filter {
                 return true;
             }
         }
-        return requestURI.startsWith("/assets/"); // Cho phép truy cập tài nguyên tĩnh
+        return false;
     }
 
     /**

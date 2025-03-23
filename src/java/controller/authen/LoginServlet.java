@@ -37,7 +37,7 @@ public class LoginServlet extends HttpServlet {
             session.setAttribute("staff", user);
             
             // Redirect to home page or dashboard
-            response.sendRedirect(request.getContextPath() + "/home");
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
         } else {
             // Authentication failed
             request.setAttribute("error", "Invalid username or password");

@@ -28,6 +28,7 @@ public class RoleBasedAuthorization implements Filter {
         //ROLE_PERMISSIONS.put("/manager/", Arrays.asList("Division Leader", "Trưởng nhóm"));
         ROLE_PERMISSIONS.put("/leave/create", Arrays.asList("Division Leader", "Trưởng nhóm", "Nhân viên"));
         ROLE_PERMISSIONS.put("/leave/review", Arrays.asList("Division Leader", "Trưởng nhóm"));
+        ROLE_PERMISSIONS.put("/agenda", Arrays.asList("Division Leader"));
         ROLE_PERMISSIONS.put("/leave/list", Arrays.asList("Division Leader", "Trưởng nhóm", "Nhân viên"));
         ROLE_PERMISSIONS.put("/leave/edit", Arrays.asList("Division Leader", "Trưởng nhóm", "Nhân viên"));
         // Add more URL pattern to role mappings
