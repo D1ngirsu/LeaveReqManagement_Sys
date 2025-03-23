@@ -394,6 +394,58 @@ public class LeaveRequestDAO extends DBContext {
         return 0;
     }
 
+    /**
+     * Tìm tất cả các leave request có overlap với khoảng thời gian cho trước
+     *
+     * @param ownerId ID của nhân viên (có thể null để tìm tất cả)
+     * @param startDate Ngày bắt đầu khoảng thời gian cần tìm
+     * @param endDate Ngày kết thúc khoảng thời gian cần tìm
+     * @return Danh sách các leave request thỏa mãn điều kiện
+     */
+    public List<LeaveRequest> findLeaveRequestsByDateRange(Integer ownerId, Date startDate, Date endDate) {
+        List<LeaveRequest> requests = new ArrayList<>();
+
+        StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM LeaveRequests WHERE 1=1 ");
+
+        // Kiểm tra overlap giữa khoảng thời gian leave và khoảng thời gian cần tìm
+        if (startDate != null && endDate != null) {
+            sqlBuilder.append("AND NOT (endDate < ? OR startDate > ?) ");
+        }
+
+        // Thêm điều kiện tìm theo owner nếu có
+        if (ownerId != null) {
+            sqlBuilder.append("AND ownerId = ? ");
+        }
+
+        // Sắp xếp theo thứ tự tăng dần của ngày bắt đầu
+        sqlBuilder.append("ORDER BY startDate ASC");
+
+        try (PreparedStatement ps = connection.prepareStatement(sqlBuilder.toString())) {
+            int paramIndex = 1;
+
+            // Thiết lập tham số cho khoảng thời gian
+            if (startDate != null && endDate != null) {
+                ps.setDate(paramIndex++, new java.sql.Date(startDate.getTime()));
+                ps.setDate(paramIndex++, new java.sql.Date(endDate.getTime()));
+            }
+
+            // Thiết lập tham số cho ownerId nếu có
+            if (ownerId != null) {
+                ps.setInt(paramIndex++, ownerId);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    requests.add(mapResultSetToLeaveRequest(rs));
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+
+        return requests;
+    }
+
     // Helper method to map ResultSet to LeaveRequest object
     private LeaveRequest mapResultSetToLeaveRequest(ResultSet rs) throws SQLException {
         LeaveRequest request = new LeaveRequest();
